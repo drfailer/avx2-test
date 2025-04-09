@@ -1,5 +1,5 @@
 CC=g++
-CXXFLAGS=-Wall -Wextra -Wuninitialized -MMD -g -fdiagnostics-color=auto -O3 -mavx
+CXXFLAGS=-Wall -Wextra -Wuninitialized -MMD -g -fdiagnostics-color=auto -O3 -mavx -mavx512f
 LDFLAGS=
 SRC=$(wildcard *.cpp)
 OBJ=$(addprefix build/,$(SRC:.cpp=.o))
