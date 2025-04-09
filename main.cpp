@@ -37,15 +37,16 @@ void matmul_avx2(Matrix const &A, Matrix const &B, Matrix &C) {
         for (size_t j = 0; j < B.cols; ++j) {
             __m256d sum256 = _mm256_set_pd(0, 0, 0, 0);
             double sum = 0;
-            size_t block_size = 256 / sizeof(double);
+            size_t block_size = 256 / (sizeof(double) * 8);
             size_t N = A.cols / block_size;
 
             for (size_t k = 0; k < N; ++k) {
-                __m256d a = _mm256_load_pd(&A[i][k*4]);
-                __m256d b = _mm256_set_pd(B[k * 4][i], B[k * 4 + 1][i],
-                                          B[k * 4 + 2][i], B[k * 4 + 3][i]);
+                size_t kk = k * block_size;
+                __m256d a = _mm256_load_pd(&A[i][kk]);
+                __m256d b = _mm256_setr_pd(B[kk][j], B[kk + 1][j], B[kk + 2][j],
+                                          B[kk + 3][j]);
                 __m256d mul = _mm256_mul_pd(a, b);
-                _mm256_add_pd(sum256, mul);
+                sum256 = _mm256_add_pd(sum256, mul);
             }
 
             for (size_t k = A.cols - A.cols%block_size; k < A.cols; ++k) {
@@ -79,18 +80,33 @@ int main(int, char**) {
     constexpr size_t k = 1000;
     Matrix A(m, n);
     Matrix B(n, k);
-    Matrix C(m, k);
+    Matrix C1(m, k);
+    Matrix C2(m, k);
 
-    init(A, B, C);
+    init(A, B, C1);
     timer_start(matmul);
-    matmul(A, B, C);
+    matmul(A, B, C1);
     timer_end(matmul);
 
+    if (m < 8 && k < 10) display_matrix("C1", C1);
+
     timer_start(matmul_avx2);
-    matmul_avx2(A, B, C);
+    matmul_avx2(A, B, C2);
     timer_end(matmul_avx2);
+
+
+    if (m < 8 && k < 10) display_matrix("C2", C2);
 
     timer_report_prec(matmul, milliseconds);
     timer_report_prec(matmul_avx2, milliseconds);
+
+    for (size_t i = 0; i < m * k; ++i) {
+        if (C1.mem[i] != C2.mem[i]) {
+              std::cout << "error[" << i << "]:" << C1.mem[i] << " != " << C2.mem[i]
+                        << std::endl;
+              return 1;
+        }
+    }
+    std::cout << "matrix are equals" << std::endl;
     return 0;
 }
